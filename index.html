@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart City 2030 | Apollo Innovation Hub</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- ================================================================= -->
+  <!-- VIEW 1: LOGIN PAGE WITH LIVE WALLPAPER & GLASSMORPHISM CARD        -->
+  <!-- ================================================================= -->
+  <main id="login-view" class="view-active">
+    <!-- Live Wallpaper Background Canvas & City Backdrop -->
+    <div class="wallpaper-container">
+      <div class="wallpaper-image" style="background-image: url('assets/wallpaper.jpg');"></div>
+      <div class="wallpaper-overlay"></div>
+      <!-- Interactive Dynamic Canvas for futuristic particles, light trails & ambient animation -->
+      <canvas id="live-wallpaper-canvas"></canvas>
+    </div>
+
+    <!-- Top Navigation Bar (Matches Photo 2, NO center links as requested) -->
+    <header class="top-nav-bar">
+      <div class="nav-brand">
+        <div class="brand-logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+            <path d="M9 22v-4h6v4"></path>
+            <path d="M8 6h.01"></path>
+            <path d="M16 6h.01"></path>
+            <path d="M12 6h.01"></path>
+            <path d="M12 10h.01"></path>
+            <path d="M12 14h.01"></path>
+            <path d="M16 10h.01"></path>
+            <path d="M16 14h.01"></path>
+            <path d="M8 10h.01"></path>
+            <path d="M8 14h.01"></path>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-title">APOLLO</span>
+          <span class="brand-sub">SMART CITY 2030</span>
+        </div>
+      </div>
+
+      <!-- Center navigation links removed as requested in prompt item 8 -->
+
+      <!-- Right Security / Mode Badge -->
+      <!-- Right Security Badge -->
+      <div class="nav-right-tools">
+        <div class="security-chip" title="100% End-to-End Encrypted Access">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            <path d="m9 12 2 2 4-4"></path>
+          </svg>
+          <span>100% SECURE SSL</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Glassmorphic Login Card (Exact Replica of Photo 2) -->
+    <section class="login-card-wrapper">
+      <div class="glass-login-card">
+        <!-- Card Brand Icon -->
+        <div class="card-hero-icon">
+          <div class="glow-circle"></div>
+          <svg viewBox="0 0 48 48" fill="none" class="city-svg-icon">
+            <path d="M14 42V18L26 8V42" stroke="#00e676" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M26 22L36 14V42" stroke="#00e5ff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M6 42H42" stroke="#00e676" stroke-width="3" stroke-linecap="round"/>
+            <path d="M19 24H21M19 30H21M19 36H21" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
+            <path d="M30 24H32M30 30H32M30 36H32" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
+            <path d="M35 34C37 32 40 32 42 34C42 37 39 40 35 40C35 37 34 35 35 34Z" fill="#00e676"/>
+          </svg>
+        </div>
+
+        <h2 class="card-main-title">SMART CITY <span class="year-accent">2030</span></h2>
+        <p class="card-tagline">Building A Better Tomorrow</p>
+
+        <div class="card-greeting-block">
+          <h3 class="welcome-heading">Welcome Back!</h3>
+          <p class="login-subinstruction">Login to continue to your account</p>
+        </div>
+
+        <!-- Security Error / Notification Banner -->
+        <div id="auth-alert" class="auth-alert hidden" role="alert">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          <span id="auth-alert-msg">Please check your credentials</span>
+        </div>
+
+        <!-- Login Form -->
+        <form id="login-form" autocomplete="off">
+          <!-- Username Input -->
+          <div class="input-group">
+            <div class="input-icon-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+            </div>
+            <input 
+              type="text" 
+              id="username-input" 
+              placeholder="Enter your username" 
+              required 
+              autocomplete="off"
+            />
+          </div>
+
+          <!-- Password Input with Seen/Hidden Toggle Icon -->
+          <div class="input-group">
+            <div class="input-icon-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+            </div>
+            <input 
+              type="password" 
+              id="password-input" 
+              placeholder="Enter your password" 
+              required 
+              autocomplete="new-password"
+            />
+            <!-- Seen / Unseen Toggle Icon Button (Requirement 6) -->
+            <button 
+              type="button" 
+              id="toggle-password-btn" 
+              class="seen-password-btn" 
+              aria-label="Toggle password visibility" 
+              title="Show / Hide password"
+            >
+              <svg id="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              <svg id="eye-slash-icon" class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Forgot Password Link -->
+          <div class="form-helper-row">
+            <label class="remember-me">
+              <input type="checkbox" id="remember-me-checkbox" checked />
+              <span>Remember me</span>
+            </label>
+            <a href="javascript:void(0)" id="forgot-password-link" class="forgot-link">Forgot Password?</a>
+          </div>
+
+          <!-- Glowing Green Gradient Login Button (Requirement 7) -->
+          <button type="submit" id="login-btn" class="glow-login-button">
+            <span class="btn-text">LOGIN</span>
+            <div class="spinner hidden" id="login-spinner"></div>
+          </button>
+        </form>
+
+        <!-- Don't have an account & Sign Up -->
+        <div class="signup-prompt">
+          Don't have an account? <a href="javascript:void(0)" id="signup-toggle-link" class="highlight-link">Sign Up</a>
+        </div>
+
+        <div class="or-separator">
+          <span>OR</span>
+        </div>
+
+        <!-- Explore As Guest Button -->
+        <button type="button" id="guest-btn" class="guest-explore-button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="8.5" cy="7" r="4"></circle>
+            <polyline points="17 11 19 13 23 9"></polyline>
+          </svg>
+          <span>Explore As Guest</span>
+        </button>
+
+        <!-- Credentials hint helper -->
+        <div class="credentials-hint">
+          <span>Demo Credentials: <strong>admin</strong> / <strong>smartcity2030</strong></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Bottom Feature Badges (Exact 5 Features from Photo 2) -->
+    <footer class="bottom-features-bar">
+      <div class="feature-badge">
+        <div class="feature-icon-circle green">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+        </div>
+        <div class="feature-meta">
+          <strong class="feature-title">People First</strong>
+          <span class="feature-desc">Smart Communities</span>
+        </div>
+      </div>
+
+      <div class="feature-badge">
+        <div class="feature-icon-circle teal">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"></path>
+            <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"></path>
+          </svg>
+        </div>
+        <div class="feature-meta">
+          <strong class="feature-title">Sustainable</strong>
+          <span class="feature-desc">Environment</span>
+        </div>
+      </div>
+
+      <div class="feature-badge">
+        <div class="feature-icon-circle yellow">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+        </div>
+        <div class="feature-meta">
+          <strong class="feature-title">Smart</strong>
+          <span class="feature-desc">Energy</span>
+        </div>
+      </div>
+
+      <div class="feature-badge">
+        <div class="feature-icon-circle emerald">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          </svg>
+        </div>
+        <div class="feature-meta">
+          <strong class="feature-title">Safe & Secure</strong>
+          <span class="feature-desc">City</span>
+        </div>
+      </div>
+
+      <div class="feature-badge">
+        <div class="feature-icon-circle cyan">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="18"></rect>
+            <rect x="14" y="9" width="7" height="12"></rect>
+            <line x1="6" y1="7" x2="7" y2="7"></line>
+            <line x1="6" y1="11" x2="7" y2="11"></line>
+            <line x1="6" y1="15" x2="7" y2="15"></line>
+            <line x1="17" y1="13" x2="18" y2="13"></line>
+            <line x1="17" y1="17" x2="18" y2="17"></line>
+          </svg>
+        </div>
+        <div class="feature-meta">
+          <strong class="feature-title">Advanced</strong>
+          <span class="feature-desc">Infrastructure</span>
+        </div>
+      </div>
+    </footer>
+  </main>
+
+
+  <!-- ================================================================= -->
+  <!-- VIEW: DEDICATED SIGN UP PAGE (PERFECT SEPARATE PAGE FOR SIGN UP)  -->
+  <!-- ================================================================= -->
+  <main id="signup-view" class="view-hidden">
+    <!-- Live Wallpaper Background (Same as Login Page) -->
+    <div class="wallpaper-container">
+      <div class="wallpaper-image" style="background-image: url('assets/wallpaper.jpg');"></div>
+      <div class="wallpaper-overlay"></div>
+    </div>
+
+    <!-- Top Navigation Bar -->
+    <header class="top-nav-bar">
+      <div class="nav-brand">
+        <div class="brand-logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+            <path d="M9 22v-4h6v4"></path>
+            <path d="M8 6h.01"></path>
+            <path d="M16 6h.01"></path>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-title">APOLLO</span>
+          <span class="brand-sub">SMART CITY 2030</span>
+        </div>
+      </div>
+
+      <!-- Right Security Badge -->
+      <div class="nav-right-tools">
+        <div class="security-chip" title="100% End-to-End Encrypted Registration">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            <path d="m9 12 2 2 4-4"></path>
+          </svg>
+          <span>100% SECURE REGISTRATION</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Glassmorphic Sign Up Card -->
+    <section class="login-card-wrapper">
+      <div class="glass-login-card signup-card">
+        <!-- Card Hero Icon -->
+        <div class="card-hero-icon">
+          <div class="glow-circle"></div>
+          <svg viewBox="0 0 48 48" fill="none" class="city-svg-icon">
+            <path d="M14 42V18L26 8V42" stroke="#00e676" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M26 22L36 14V42" stroke="#00e5ff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M6 42H42" stroke="#00e676" stroke-width="3" stroke-linecap="round"/>
+            <path d="M19 24H21M19 30H21M19 36H21" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
+            <path d="M30 24H32M30 30H32M30 36H32" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+
+        <h2 class="card-main-title">SMART CITY <span class="year-accent">2030</span></h2>
+        <p class="card-tagline">Citizen Registration Portal</p>
+
+        <div class="card-greeting-block">
+          <h3 class="welcome-heading">Create Account</h3>
+          <p class="login-subinstruction">Register to post opinions, vote & shape Smart City 2030</p>
+        </div>
+
+        <!-- Sign Up Alert Banner -->
+        <div id="signup-alert" class="auth-alert hidden" role="alert">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          <span id="signup-alert-msg">Please check your details</span>
+        </div>
+
+        <!-- Sign Up Form -->
+        <form id="signup-form" autocomplete="off">
+          <!-- Full Name Input -->
+          <div class="input-group">
+            <div class="input-icon-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+            </div>
+            <input 
+              type="text" 
+              id="signup-fullname" 
+              placeholder="Enter your full name" 
+              required 
+              autocomplete="off"
+            />
+          </div>
+
+          <!-- Username Input -->
+          <div class="input-group">
+            <div class="input-icon-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="4"></circle>
+                <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"></path>
+              </svg>
+            </div>
+            <input 
+              type="text" 
+              id="signup-username" 
+              placeholder="Choose your username" 
+              required 
+              autocomplete="off"
+            />
+          </div>
+
+          <!-- Email Input -->
+          <div class="input-group">
+            <div class="input-icon-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                <polyline points="22,6 12,13 2,6"></polyline>
+              </svg>
+            </div>
+            <input 
+              type="email" 
+              id="signup-email" 
+              placeholder="Enter your email address" 
+              required 
+              autocomplete="off"
+            />
+          </div>
+
+          <!-- Password Input with Eye Toggle -->
+          <div class="input-group">
+            <div class="input-icon-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+            </div>
+            <input 
+              type="password" 
+              id="signup-password" 
+              placeholder="Create password (min 6 chars)" 
+              required 
+              autocomplete="new-password"
+            />
+            <button 
+              type="button" 
+              id="toggle-signup-password-btn" 
+              class="seen-password-btn" 
+              aria-label="Toggle password visibility" 
+              title="Show / Hide password"
+            >
+              <svg id="signup-eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              <svg id="signup-eye-slash-icon" class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Confirm Password Input -->
+          <div class="input-group">
+            <div class="input-icon-left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="m9 12 2 2 4-4"></path>
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+            </div>
+            <input 
+              type="password" 
+              id="signup-confirm-password" 
+              placeholder="Confirm your password" 
+              required 
+              autocomplete="new-password"
+            />
+          </div>
+
+          <!-- Glowing Green Gradient Create Account Button -->
+          <button type="submit" id="create-account-btn" class="glow-login-button" style="margin-top: 8px;">
+            <span class="btn-text">CREATE CITIZEN ACCOUNT</span>
+            <div class="spinner hidden" id="signup-spinner"></div>
+          </button>
+        </form>
+
+        <!-- Back to Login Link -->
+        <div class="signup-prompt" style="margin-top: 20px;">
+          Already have an account? <a href="javascript:void(0)" id="back-to-login-link" class="highlight-link">Log In Here</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Bottom Feature Badges Bar -->
+    <footer class="bottom-features-bar">
+      <div class="feature-badge">
+        <div class="feature-icon-circle green">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+        </div>
+        <div class="feature-meta"><strong class="feature-title">People First</strong><span class="feature-desc">Smart Communities</span></div>
+      </div>
+      <div class="feature-badge">
+        <div class="feature-icon-circle teal">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"></path></svg>
+        </div>
+        <div class="feature-meta"><strong class="feature-title">Sustainable</strong><span class="feature-desc">Environment</span></div>
+      </div>
+      <div class="feature-badge">
+        <div class="feature-icon-circle yellow">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+        </div>
+        <div class="feature-meta"><strong class="feature-title">Smart</strong><span class="feature-desc">Energy</span></div>
+      </div>
+      <div class="feature-badge">
+        <div class="feature-icon-circle emerald">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+        </div>
+        <div class="feature-meta"><strong class="feature-title">Safe & Secure</strong><span class="feature-desc">City</span></div>
+      </div>
+      <div class="feature-badge">
+        <div class="feature-icon-circle cyan">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18"></rect><rect x="14" y="9" width="7" height="12"></rect></svg>
+        </div>
+        <div class="feature-meta"><strong class="feature-title">Advanced</strong><span class="feature-desc">Infrastructure</span></div>
+      </div>
+    </footer>
+  </main>
+
+
+  <!-- ================================================================= -->
+  <!-- VIEW 2: SIMPLE & CLEAN CITIZEN OPINION HUB (NO INSTAGRAM)         -->
+  <!-- ================================================================= -->
+  <section id="feed-view" class="view-hidden">
+    <!-- Clean Top Navigation Bar with SIGN OUT -->
+    <header class="opinion-navbar">
+      <div class="opinion-nav-container">
+        <div class="opinion-brand">
+          <div class="opinion-logo-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+              <path d="M9 22v-4h6v4"></path>
+            </svg>
+          </div>
+          <div>
+            <h2 class="opinion-brand-title">APOLLO SMART CITY 2030</h2>
+            <span class="opinion-brand-subtitle">Citizen Opinion & Ideas Hub</span>
+          </div>
+        </div>
+
+        <!-- User Status & Sign Out (Requirement 2) -->
+        <div class="opinion-nav-actions">
+          <div class="user-status-pill" id="user-status-badge">
+            <span class="status-indicator"></span>
+            <span id="display-username" class="user-name-text">admin</span>
+          </div>
+          <button id="signout-btn" class="simple-signout-btn" title="Sign out / Switch account">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+            <span>Sign Out</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <div class="opinion-main-layout">
+      <!-- 1. POSTER SHOWCASE (Photo 1) -->
+      <section class="poster-section">
+        <div class="poster-card">
+          <div class="poster-header-info">
+            <span class="poster-badge">IDEATHON 5.0 • APOLLO INSTITUTE</span>
+            <h3>SMART CITY 2030: Future Begins with Innovation</h3>
+            <p>One City • One Smart System • Better Life</p>
+          </div>
+          <div class="poster-image-wrapper">
+            <img src="assets/poster.jpg" alt="IDEATHON 5.0 - SMART CITY 2030" class="poster-img" />
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. OPINION INPUT SECTION (FOR LOGGED IN / SIGNED UP USERS) -->
+      <section class="opinion-form-section">
+        <!-- Logged In User Form -->
+        <div id="opinion-input-box" class="opinion-card-box">
+          <div class="box-title-row">
+            <div class="box-icon">💡</div>
+            <div>
+              <h3>Share Your Opinion & Ideas</h3>
+              <p>Your suggestions directly shape the future of Smart City 2030</p>
+            </div>
+          </div>
+
+          <form id="opinion-submit-form">
+            <!-- Category Selection -->
+            <div class="form-row">
+              <div class="input-field-wrap">
+                <label for="opinion-category">Choose Topic / Smart Pillar:</label>
+                <select id="opinion-category" required>
+                  <option value="☀️ Solar & Renewable Energy">☀️ Solar & Renewable Energy</option>
+                  <option value="🚦 Smart Traffic Management">🚦 Smart Traffic Management</option>
+                  <option value="💧 Smart Water & Waste System">💧 Smart Water & Waste System</option>
+                  <option value="💡 Smart Street Lights">💡 Smart Street Lights</option>
+                  <option value="🚌 Smart Transport System">🚌 Smart Transport System</option>
+                  <option value="🌿 Green & Healthy City">🌿 Green & Healthy City</option>
+                  <option value="🚨 Emergency Response System">🚨 Emergency Response System</option>
+                  <option value="🏙️ Advanced Infrastructure">🏙️ Advanced Infrastructure</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Opinion Textarea -->
+            <div class="form-row">
+              <label for="opinion-input-text">Your Suggestion / Opinion:</label>
+              <textarea 
+                id="opinion-input-text" 
+                rows="3" 
+                placeholder="Write your opinion or innovative idea here... (e.g., We should install solar roof shelters over bus stations...)" 
+                required
+              ></textarea>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" id="post-opinion-btn" class="submit-opinion-button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+              <span>Submit My Opinion</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- Guest Mode Alert Banner (View Only) -->
+        <div id="guest-restricted-banner" class="guest-banner-box hidden">
+          <div class="guest-banner-icon">🔒</div>
+          <div class="guest-banner-text">
+            <h4>You are exploring as Guest (View-Only Mode)</h4>
+            <p>Guests can explore and <strong>like</strong> opinions below. To write and submit your own opinion, please log in with an account.</p>
+          </div>
+          <button type="button" id="guest-login-redirect-btn" class="guest-login-btn">
+            Log In / Sign Up to Post
+          </button>
+        </div>
+      </section>
+
+      <!-- 3. OPINIONS LIST SECTION (DATABASE SAVED OPINIONS WITH LIKE & AUTHOR-ONLY DELETE) -->
+      <section class="opinions-feed-section">
+        <div class="feed-header-row">
+          <div>
+            <h3>Public Opinions & Community Suggestions</h3>
+            <p>Browse ideas submitted by citizens. Click Like to support an idea!</p>
+          </div>
+          <div class="opinions-counter-badge">
+            <span id="total-opinions-count">0</span> Opinions
+          </div>
+        </div>
+
+        <!-- Dynamic Opinions Cards Container -->
+        <div id="opinions-cards-container" class="opinions-cards-container">
+          <!-- Populated by JavaScript from Database -->
+        </div>
+      </section>
+    </div>
+  </section>
+
+  <!-- Toast Alert Notifications -->
+  <div id="toast-notification" class="toast-popup hidden">
+    <span id="toast-message">Action completed successfully!</span>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
