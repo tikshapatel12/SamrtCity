@@ -223,10 +223,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function sanitizeInput(str) {
-    return str.replace(/[<>&'"]/g, '');
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/[<>&'"]/g, '');
   }
 
-  // Handle Form Submission
   // =========================================================================
   // GLOBAL CLOUD DATABASE CONFIGURATION (Real-time sync across Mobile & PC)
   // =========================================================================
@@ -237,7 +237,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // In-memory opinions cache for instant 0ms render
   let cachedOpinions = [];
-  let isFetchingCloud = false;
 
   const defaultSeedOpinions = [
     {
@@ -285,33 +284,20 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) {}
   }
 
-  // Helper: Fetch fresh opinions from Cloud DB
-  async function fetchOpinionsFromCloud(shouldRender = true) {
-    if (isFetchingCloud) return;
-    isFetchingCloud = true;
+  // Helper: Fetch fresh opinions from Cloud DB and ALWAYS render them
+  async function fetchOpinionsFromCloud() {
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000);
-      const res = await fetch(CLOUD_OPINIONS_URL + '?t=' + Date.now(), { signal: controller.signal });
-      clearTimeout(timeoutId);
-
+      const res = await fetch(CLOUD_OPINIONS_URL + '?t=' + Date.now(), { cache: 'no-store' });
       if (res.ok) {
         const cloudOps = await res.json();
         if (Array.isArray(cloudOps) && cloudOps.length > 0) {
-          const hasChanged = JSON.stringify(cloudOps) !== JSON.stringify(cachedOpinions);
-          if (hasChanged) {
-            cachedOpinions = cloudOps;
-            saveLocalOpinions(cloudOps);
-            if (shouldRender) renderOpinions();
-          }
-        } else if (cachedOpinions.length > 0) {
-          pushOpinionsToCloud(cachedOpinions);
+          cachedOpinions = cloudOps;
+          saveLocalOpinions(cloudOps);
+          renderOpinions(); // ALWAYS render when fresh cloud data arrives!
         }
       }
     } catch (err) {
-      // Offline fallback: Use local cache silently
-    } finally {
-      isFetchingCloud = false;
+      console.warn('Cloud opinions fetch notice:', err);
     }
   }
 
@@ -333,7 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3500);
-      const res = await fetch(CLOUD_USERS_URL + '?t=' + Date.now(), { signal: controller.signal });
+      const res = await fetch(CLOUD_USERS_URL + '?t=' + Date.now(), { signal: controller.signal, cache: 'no-store' });
       clearTimeout(timeoutId);
       if (res.ok) {
         const data = await res.json();
@@ -381,18 +367,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Initialize cached opinions from local store first
+  // Startup: Load local cache, render immediately, and fetch from cloud
   cachedOpinions = getLocalOpinions();
+  fetchOpinionsFromCloud();
 
-  // Background Cloud Sync on startup
-  fetchOpinionsFromCloud(false);
-
-  // Real-time live polling (Every 6 seconds syncs any new opinions/likes from other devices!)
+  // Real-time live polling (Every 5 seconds syncs any new opinions/likes from other devices!)
   setInterval(() => {
-    if (feedView && feedView.classList.contains('view-active')) {
-      fetchOpinionsFromCloud(true);
-    }
-  }, 6000);
+    fetchOpinionsFromCloud();
+  }, 5000);
 
   // =========================================================================
   // 3. LOGIN FORM SUBMISSION (Cross-Device Cloud Authentication)
@@ -465,6 +447,10 @@ document.addEventListener('DOMContentLoaded', () => {
         sessionStorage.setItem('smartcity_username', username);
         sessionStorage.setItem('smartcity_role', role);
 
+        localStorage.setItem('smartcity_logged_in', 'true');
+        localStorage.setItem('smartcity_username', username);
+        localStorage.setItem('smartcity_role', role);
+
         showToast(`Welcome, ${username}! 100% Secure Session Active.`);
         transitionToFeed(username, role);
       } else {
@@ -493,6 +479,11 @@ document.addEventListener('DOMContentLoaded', () => {
       sessionStorage.setItem('smartcity_logged_in', 'true');
       sessionStorage.setItem('smartcity_username', 'Guest');
       sessionStorage.setItem('smartcity_role', 'guest');
+
+      localStorage.setItem('smartcity_logged_in', 'true');
+      localStorage.setItem('smartcity_username', 'Guest');
+      localStorage.setItem('smartcity_role', 'guest');
+
       showToast('Exploring as Guest: View & Like Access Enabled.');
       transitionToFeed('Guest', 'guest');
     });
@@ -629,10 +620,14 @@ document.addEventListener('DOMContentLoaded', () => {
       if (signupSpinner) signupSpinner.classList.add('hidden');
       createAccountBtn.querySelector('.btn-text').textContent = 'CREATE CITIZEN ACCOUNT';
 
-      // Auto login newly registered citizen
+      // Auto login newly registered citizen in both sessionStorage and localStorage
       sessionStorage.setItem('smartcity_logged_in', 'true');
       sessionStorage.setItem('smartcity_username', cleanUser);
       sessionStorage.setItem('smartcity_role', 'user');
+
+      localStorage.setItem('smartcity_logged_in', 'true');
+      localStorage.setItem('smartcity_username', cleanUser);
+      localStorage.setItem('smartcity_role', 'user');
 
       showToast(`Welcome, ${fullname}! Citizen account created & synced globally! 🚀`);
 
@@ -681,9 +676,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (guestRestrictedBanner) guestRestrictedBanner.classList.add('hidden');
     }
 
-    // Render immediately from local cache, then sync from Cloud DB
+    // Render immediately from cache, then fetch latest from Cloud DB
     renderOpinions();
-    fetchOpinionsFromCloud(true);
+    fetchOpinionsFromCloud();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -703,6 +698,10 @@ document.addEventListener('DOMContentLoaded', () => {
     sessionStorage.removeItem('smartcity_logged_in');
     sessionStorage.removeItem('smartcity_username');
     sessionStorage.removeItem('smartcity_role');
+
+    localStorage.removeItem('smartcity_logged_in');
+    localStorage.removeItem('smartcity_username');
+    localStorage.removeItem('smartcity_role');
 
     showToast(customMessage || 'Signed out safely. Session ended.');
 
@@ -726,10 +725,14 @@ document.addEventListener('DOMContentLoaded', () => {
     signoutBtn.addEventListener('click', () => performSignout());
   }
 
-  // Restore session on reload
-  if (sessionStorage.getItem('smartcity_logged_in') === 'true') {
-    const savedUser = sessionStorage.getItem('smartcity_username') || 'admin';
-    const savedRole = sessionStorage.getItem('smartcity_role') || 'user';
+  // Restore session on reload (Checks both sessionStorage and localStorage)
+  const isSavedLogin = (sessionStorage.getItem('smartcity_logged_in') === 'true') || (localStorage.getItem('smartcity_logged_in') === 'true');
+  if (isSavedLogin) {
+    const savedUser = sessionStorage.getItem('smartcity_username') || localStorage.getItem('smartcity_username') || 'admin';
+    const savedRole = sessionStorage.getItem('smartcity_role') || localStorage.getItem('smartcity_role') || 'user';
+    sessionStorage.setItem('smartcity_logged_in', 'true');
+    sessionStorage.setItem('smartcity_username', savedUser);
+    sessionStorage.setItem('smartcity_role', savedRole);
     transitionToFeed(savedUser, savedRole);
   }
 
@@ -746,9 +749,15 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderOpinions() {
     if (!opinionsCardsContainer) return;
 
-    const opinions = cachedOpinions.length > 0 ? cachedOpinions : getLocalOpinions();
-    const currentUser = sessionStorage.getItem('smartcity_username') || '';
-    const currentRole = sessionStorage.getItem('smartcity_role') || 'guest';
+    // Retrieve opinions safely from in-memory cache or local store
+    let opinions = cachedOpinions;
+    if (!Array.isArray(opinions) || opinions.length === 0) {
+      opinions = getLocalOpinions();
+      cachedOpinions = opinions;
+    }
+
+    const currentUsername = (sessionStorage.getItem('smartcity_username') || localStorage.getItem('smartcity_username') || '').toLowerCase();
+    const currentRole = sessionStorage.getItem('smartcity_role') || localStorage.getItem('smartcity_role') || 'guest';
 
     if (totalOpinionsCount) {
       totalOpinionsCount.textContent = opinions.length;
@@ -764,41 +773,47 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     opinionsCardsContainer.innerHTML = opinions.map((op) => {
-      // Permission check: Author only or Admin (Guests CANNOT delete)
-      const isAuthor = currentUser && (currentUser.toLowerCase() === op.author.toLowerCase());
-      const isAdmin = currentRole === 'admin';
-      const canDelete = (currentRole !== 'guest') && (isAuthor || isAdmin);
+      if (!op) return '';
+      const opId = String(op.id || ('op_' + Math.random()));
+      const opAuthor = String(op.author || 'Citizen');
+      const opCategory = String(op.category || 'Smart City Idea');
+      const opText = String(op.text || '');
+      const opTime = String(op.time || 'Recently');
+      const opLikes = Number(op.likes) || 0;
 
-      const avatarInitial = op.author ? op.author.charAt(0).toUpperCase() : 'C';
+      const isAuthor = currentUsername && (currentUsername === opAuthor.toLowerCase());
+      const isAdmin = currentRole === 'admin' || currentUsername === 'admin';
+      const canDelete = (currentRole !== 'guest') && (isAuthor || isAdmin);
+      const avatarInitial = opAuthor.charAt(0).toUpperCase() || 'C';
 
       return `
-        <article class="opinion-item-card" id="card-${op.id}">
+        <article class="opinion-item-card" id="card-${opId}">
           <div class="opinion-card-top">
             <div class="author-info-group">
               <div class="author-avatar">${avatarInitial}</div>
               <div>
-                <span class="author-name">${sanitizeInput(op.author)}</span>
+                <span class="author-name">${sanitizeInput(opAuthor)}</span>
                 ${isAuthor ? '<small style="color:#00e676; font-weight:700; margin-left:4px;">(You)</small>' : ''}
-                <span class="opinion-time">• ${op.time || 'Recently'}</span>
+                <span class="opinion-time">• ${sanitizeInput(opTime)}</span>
               </div>
             </div>
-            <span class="opinion-pillar-tag">${sanitizeInput(op.category || 'Idea')}</span>
+            <span class="opinion-pillar-tag">${sanitizeInput(opCategory)}</span>
           </div>
 
-          <div class="opinion-content-text">${sanitizeInput(op.text)}</div>
+          <div class="opinion-content-text">${sanitizeInput(opText)}</div>
 
           <div class="opinion-card-bottom">
             <!-- 1 Button For Like (Anyone can like from any device) -->
-            <button type="button" class="opinion-like-button" data-id="${op.id}" title="Like this opinion">
+            <button type="button" class="opinion-like-button" data-id="${opId}" title="Like this opinion">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
               </svg>
-              <span>Like (${op.likes || 0})</span>
+              <span>Like (${opLikes})</span>
             </button>
 
             <!-- Delete Button: ONLY shown for author or admin -->
             ${canDelete ? `
-              <button type="button" class="opinion-delete-button" data-id="${op.id}" title="Delete your opinion">
+              <button type="button" class="opinion-delete-button" data-id="${opId}" title="Delete your opinion">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polyline points="3 6 5 6 21 6"></polyline>
                   <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -852,7 +867,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // 2. Sync with Cloud DB to prevent collision with other users
       try {
-        const res = await fetch(CLOUD_OPINIONS_URL + '?t=' + Date.now());
+        const res = await fetch(CLOUD_OPINIONS_URL + '?t=' + Date.now(), { cache: 'no-store' });
         let list = [];
         if (res.ok) {
           list = await res.json();
