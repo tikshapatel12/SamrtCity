@@ -398,7 +398,74 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // =========================================================================
-  // 4. RENDER OPINIONS & VIEW TRANSITIONS
+  // 4. OPINION TIMESTAMP FORMATTER (Accurate Written Time & Date)
+  // =========================================================================
+  function formatOpinionTimestamp(op) {
+    if (!op) return 'Recently';
+
+    let timestamp = null;
+
+    if (op.createdAt) {
+      timestamp = typeof op.createdAt === 'number' ? op.createdAt : new Date(op.createdAt).getTime();
+    }
+
+    // Extract millisecond timestamp from id (e.g., op_1788507876524_168)
+    if (!timestamp && op.id && typeof op.id === 'string') {
+      const match = op.id.match(/^op_(\d{11,})/);
+      if (match) {
+        timestamp = parseInt(match[1], 10);
+      }
+    }
+
+    if (!timestamp || isNaN(timestamp)) {
+      return op.time || 'Recently';
+    }
+
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - timestamp;
+    const diffSec = Math.floor(diffMs / 1000);
+    const diffMin = Math.floor(diffSec / 60);
+
+    const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+    const dateStr = date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+
+    const isToday = date.toDateString() === now.toDateString();
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    const isYesterday = date.toDateString() === yesterday.toDateString();
+
+    if (diffSec < 45 && diffSec >= -10) {
+      return `Just now (${timeStr})`;
+    } else if (diffMin < 60 && diffMin >= 1) {
+      return `${diffMin} min${diffMin > 1 ? 's' : ''} ago (${timeStr})`;
+    } else if (isToday) {
+      return `Today at ${timeStr}`;
+    } else if (isYesterday) {
+      return `Yesterday at ${timeStr}`;
+    } else {
+      return `${dateStr} at ${timeStr}`;
+    }
+  }
+
+  function getExactTimestampTooltip(op) {
+    if (!op) return '';
+    let timestamp = null;
+    if (op.createdAt) {
+      timestamp = typeof op.createdAt === 'number' ? op.createdAt : new Date(op.createdAt).getTime();
+    }
+    if (!timestamp && op.id && typeof op.id === 'string') {
+      const match = op.id.match(/^op_(\d{11,})/);
+      if (match) timestamp = parseInt(match[1], 10);
+    }
+    if (timestamp && !isNaN(timestamp)) {
+      return 'Written on: ' + new Date(timestamp).toLocaleString();
+    }
+    return op.time ? ('Written: ' + op.time) : '';
+  }
+
+  // =========================================================================
+  // 5. RENDER OPINIONS & VIEW TRANSITIONS
   // =========================================================================
   function renderOpinions() {
     if (!opinionsCardsContainer) return;
@@ -431,7 +498,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const opAuthor = String(op.author || 'Citizen');
       const opCategory = String(op.category || 'Smart City Idea');
       const opText = String(op.text || '');
-      const opTime = String(op.time || 'Recently');
+      const opDisplayTime = formatOpinionTimestamp(op);
+      const opTimeTooltip = getExactTimestampTooltip(op);
       const opLikes = Number(op.likes) || 0;
 
       const isAuthor = currentUsername && (currentUsername === opAuthor.toLowerCase());
@@ -447,7 +515,7 @@ document.addEventListener('DOMContentLoaded', () => {
               <div>
                 <span class="author-name">${sanitizeInput(opAuthor)}</span>
                 ${isAuthor ? '<small style="color:#00e676; font-weight:700; margin-left:4px;">(You)</small>' : ''}
-                <span class="opinion-time">• ${sanitizeInput(opTime)}</span>
+                <span class="opinion-time" title="${sanitizeInput(opTimeTooltip)}">• 🕒 ${sanitizeInput(opDisplayTime)}</span>
               </div>
             </div>
             <span class="opinion-pillar-tag">${sanitizeInput(opCategory)}</span>
@@ -831,12 +899,14 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
+      const nowTimestamp = Date.now();
       const newOpinion = {
-        id: 'op_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+        id: 'op_' + nowTimestamp + '_' + Math.floor(Math.random() * 1000),
         author: currentUser,
         category: category,
         text: sanitizeInput(text),
-        time: 'Just now',
+        createdAt: nowTimestamp,
+        time: formatOpinionTimestamp({ createdAt: nowTimestamp }),
         likes: 0
       };
 

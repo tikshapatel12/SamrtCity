@@ -1179,8 +1179,16 @@ body {
 
 .opinion-time {
   font-size: 11px;
-  color: var(--text-muted);
+  color: rgba(226, 232, 240, 0.7);
   margin-left: 6px;
+  cursor: help;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.opinion-time:hover {
+  color: var(--neon-cyan);
 }
 
 .opinion-pillar-tag {
