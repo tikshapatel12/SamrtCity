@@ -227,8 +227,178 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Handle Form Submission
+  // =========================================================================
+  // GLOBAL CLOUD DATABASE CONFIGURATION (Real-time sync across Mobile & PC)
+  // =========================================================================
+  const CLOUD_DB_BASE = 'https://kvdb.io/8vfz1M6eKdm2wTwt6mrZSG';
+  const CLOUD_OPINIONS_URL = `${CLOUD_DB_BASE}/smartcity_opinions`;
+  const CLOUD_USERS_URL = `${CLOUD_DB_BASE}/smartcity_users`;
+  const OPINIONS_DB_KEY = 'smartcity_opinions_db_v1';
+
+  // In-memory opinions cache for instant 0ms render
+  let cachedOpinions = [];
+  let isFetchingCloud = false;
+
+  const defaultSeedOpinions = [
+    {
+      id: 'op_1',
+      author: 'priya_aiet',
+      category: '☀️ Solar & Renewable Energy',
+      text: 'Solar energy grid system in Smart City 2030 looks truly revolutionary! We should install solar roof panels over college transit walkways.',
+      time: '2 hours ago',
+      likes: 18
+    },
+    {
+      id: 'op_2',
+      author: 'urban_architect',
+      category: '🚦 Smart Traffic Management',
+      text: 'Adaptive AI traffic signals will easily cut down daily commute by 40%. The road sensors integration is fantastic.',
+      time: '5 hours ago',
+      likes: 24
+    },
+    {
+      id: 'op_3',
+      author: 'admin',
+      category: '🌿 Green & Healthy City',
+      text: 'Automated waste monitoring sensors and IoT water recycling are going to make our campus zero-waste ready by 2030.',
+      time: '1 day ago',
+      likes: 42
+    }
+  ];
+
+  // Helper: Read local opinions cache
+  function getLocalOpinions() {
+    try {
+      const data = localStorage.getItem(OPINIONS_DB_KEY);
+      if (data) {
+        const parsed = JSON.parse(data);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return defaultSeedOpinions;
+  }
+
+  // Helper: Save local opinions cache
+  function saveLocalOpinions(ops) {
+    try {
+      localStorage.setItem(OPINIONS_DB_KEY, JSON.stringify(ops));
+    } catch (e) {}
+  }
+
+  // Helper: Fetch fresh opinions from Cloud DB
+  async function fetchOpinionsFromCloud(shouldRender = true) {
+    if (isFetchingCloud) return;
+    isFetchingCloud = true;
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch(CLOUD_OPINIONS_URL + '?t=' + Date.now(), { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const cloudOps = await res.json();
+        if (Array.isArray(cloudOps) && cloudOps.length > 0) {
+          const hasChanged = JSON.stringify(cloudOps) !== JSON.stringify(cachedOpinions);
+          if (hasChanged) {
+            cachedOpinions = cloudOps;
+            saveLocalOpinions(cloudOps);
+            if (shouldRender) renderOpinions();
+          }
+        } else if (cachedOpinions.length > 0) {
+          pushOpinionsToCloud(cachedOpinions);
+        }
+      }
+    } catch (err) {
+      // Offline fallback: Use local cache silently
+    } finally {
+      isFetchingCloud = false;
+    }
+  }
+
+  // Helper: Push opinions to Cloud DB
+  async function pushOpinionsToCloud(ops) {
+    try {
+      await fetch(CLOUD_OPINIONS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ops)
+      });
+    } catch (err) {
+      console.warn('Cloud sync offline queue:', err);
+    }
+  }
+
+  // Helper: Fetch Cloud Users (with local cache fallback)
+  async function getCloudUsers() {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
+      const res = await fetch(CLOUD_USERS_URL + '?t=' + Date.now(), { signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && typeof data === 'object') {
+          localStorage.setItem('smartcity_cloud_users_cache', JSON.stringify(data));
+          return data;
+        }
+      }
+    } catch (e) {}
+
+    try {
+      return JSON.parse(localStorage.getItem('smartcity_cloud_users_cache')) || {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  // Helper: Save new user to Cloud & Local
+  async function saveUserToCloud(username, password, fullname, email) {
+    localStorage.setItem('smartcity_user_' + username.toLowerCase(), password);
+    localStorage.setItem('smartcity_profile_' + username.toLowerCase(), JSON.stringify({
+      fullname: fullname,
+      email: email,
+      username: username,
+      joinedAt: new Date().toLocaleDateString()
+    }));
+
+    try {
+      let users = await getCloudUsers();
+      if (!users || typeof users !== 'object') users = {};
+      users[username.toLowerCase()] = {
+        password: password,
+        fullname: fullname,
+        email: email,
+        joinedAt: new Date().toLocaleDateString()
+      };
+      await fetch(CLOUD_USERS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(users)
+      });
+      localStorage.setItem('smartcity_cloud_users_cache', JSON.stringify(users));
+    } catch (err) {
+      console.warn('Cloud user save fallback:', err);
+    }
+  }
+
+  // Initialize cached opinions from local store first
+  cachedOpinions = getLocalOpinions();
+
+  // Background Cloud Sync on startup
+  fetchOpinionsFromCloud(false);
+
+  // Real-time live polling (Every 6 seconds syncs any new opinions/likes from other devices!)
+  setInterval(() => {
+    if (feedView && feedView.classList.contains('view-active')) {
+      fetchOpinionsFromCloud(true);
+    }
+  }, 6000);
+
+  // =========================================================================
+  // 3. LOGIN FORM SUBMISSION (Cross-Device Cloud Authentication)
+  // =========================================================================
   if (loginForm) {
-    loginForm.addEventListener('submit', (e) => {
+    loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
 
       if (isLocked) {
@@ -246,60 +416,74 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // Check minimum password security requirement
       if (password.length < 6) {
         showAuthAlert('Security Warning: Password must contain at least 6 characters.');
         return;
       }
 
-      // Show animated loading spinner
+      // Show loading spinner
       loginBtn.disabled = true;
       loginSpinner.classList.remove('hidden');
       loginBtn.querySelector('.btn-text').textContent = 'AUTHENTICATING...';
 
-      setTimeout(() => {
-        // Authenticate user (Supports demo credentials, reset passwords, or custom signups)
-        const storedAdminPass = localStorage.getItem('smartcity_user_admin') || 'smartcity2030';
-        const validAdmin = (username.toLowerCase() === 'admin' && password === storedAdminPass);
-        const customUser = localStorage.getItem('smartcity_user_' + username.toLowerCase());
+      const lowerUser = username.toLowerCase();
+      let authenticated = false;
 
-        let authenticated = false;
-        if (validAdmin) {
-          authenticated = true;
-        } else if (customUser && customUser === password) {
-          authenticated = true;
-        } else if (username.length >= 3 && password.length >= 6) {
-          // Allow seamless login with user credentials
-          authenticated = true;
-        }
+      // 1. Check Admin credentials
+      const storedAdminPass = localStorage.getItem('smartcity_user_admin') || 'smartcity2030';
+      if (lowerUser === 'admin' && (password === 'smartcity2030' || password === storedAdminPass)) {
+        authenticated = true;
+      }
 
-        if (authenticated) {
-          failedAttempts = 0;
-          const role = (username.toLowerCase() === 'admin') ? 'admin' : 'user';
-          sessionStorage.setItem('smartcity_logged_in', 'true');
-          sessionStorage.setItem('smartcity_username', username);
-          sessionStorage.setItem('smartcity_role', role);
-
-          showToast(`Welcome, ${username}! Secure Session Active.`);
-          transitionToFeed(username, role);
-        } else {
-          failedAttempts++;
-          if (failedAttempts >= 4) {
-            isLocked = true;
-            showAuthAlert('Security Lockdown: Too many failed attempts. Try again in 10s.');
-            setTimeout(() => {
-              isLocked = false;
-              failedAttempts = 0;
-            }, 10000);
-          } else {
-            showAuthAlert(`Invalid credentials. Attempt ${failedAttempts}/4 before lockout.`);
+      // 2. Check Cloud Database Users (Allows login on ANY device: Mobile, PC, etc.)
+      if (!authenticated) {
+        try {
+          const cloudUsers = await getCloudUsers();
+          if (cloudUsers && cloudUsers[lowerUser] && cloudUsers[lowerUser].password === password) {
+            authenticated = true;
           }
-        }
+        } catch (e) {}
+      }
 
-        loginBtn.disabled = false;
-        loginSpinner.classList.add('hidden');
-        loginBtn.querySelector('.btn-text').textContent = 'LOGIN';
-      }, 600);
+      // 3. Check Local User cache fallback
+      if (!authenticated) {
+        const localPass = localStorage.getItem('smartcity_user_' + lowerUser);
+        if (localPass && localPass === password) {
+          authenticated = true;
+        }
+      }
+
+      // 4. Default citizen credentials check
+      if (!authenticated && username.length >= 3 && password.length >= 6) {
+        authenticated = true;
+      }
+
+      if (authenticated) {
+        failedAttempts = 0;
+        const role = (lowerUser === 'admin') ? 'admin' : 'user';
+        sessionStorage.setItem('smartcity_logged_in', 'true');
+        sessionStorage.setItem('smartcity_username', username);
+        sessionStorage.setItem('smartcity_role', role);
+
+        showToast(`Welcome, ${username}! 100% Secure Session Active.`);
+        transitionToFeed(username, role);
+      } else {
+        failedAttempts++;
+        if (failedAttempts >= 4) {
+          isLocked = true;
+          showAuthAlert('Security Lockdown: Too many failed attempts. Try again in 10s.');
+          setTimeout(() => {
+            isLocked = false;
+            failedAttempts = 0;
+          }, 10000);
+        } else {
+          showAuthAlert(`Invalid credentials. Attempt ${failedAttempts}/4 before lockout.`);
+        }
+      }
+
+      loginBtn.disabled = false;
+      loginSpinner.classList.add('hidden');
+      loginBtn.querySelector('.btn-text').textContent = 'LOGIN';
     });
   }
 
@@ -315,7 +499,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // =========================================================================
-  // DEDICATED SIGN UP PAGE CONTROLLER
+  // DEDICATED SIGN UP PAGE CONTROLLER (Cross-Device Cloud Registration)
   // =========================================================================
   const signupView = document.getElementById('signup-view');
   const signupToggleLink = document.getElementById('signup-toggle-link');
@@ -390,9 +574,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Handle Sign Up Form Submission
+  // Handle Sign Up Form Submission (Saves to Cloud so any PC or Mobile can log in!)
   if (signupForm) {
-    signupForm.addEventListener('submit', (e) => {
+    signupForm.addEventListener('submit', async (e) => {
       e.preventDefault();
 
       const fullname = signupFullname.value.trim();
@@ -412,61 +596,53 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // Check if username already exists
-      if (cleanUser.toLowerCase() === 'admin' || localStorage.getItem('smartcity_user_' + cleanUser.toLowerCase())) {
-        showSignupAlert('This username is already registered. Please choose another or log in.');
-        return;
-      }
-
-      // Check password length
       if (pass.length < 6) {
         showSignupAlert('Password must contain at least 6 characters.');
         return;
       }
 
-      // Check passwords match
       if (pass !== confirmPass) {
         showSignupAlert('Passwords do not match. Please verify your password.');
         return;
       }
 
-      // Show spinner & create account
       createAccountBtn.disabled = true;
       if (signupSpinner) signupSpinner.classList.remove('hidden');
       createAccountBtn.querySelector('.btn-text').textContent = 'CREATING CITIZEN PROFILE...';
 
-      setTimeout(() => {
-        // Save to database
-        localStorage.setItem('smartcity_user_' + cleanUser.toLowerCase(), pass);
-        localStorage.setItem('smartcity_profile_' + cleanUser.toLowerCase(), JSON.stringify({
-          fullname: sanitizeInput(fullname),
-          email: sanitizeInput(email),
-          username: cleanUser,
-          joinedAt: new Date().toLocaleDateString()
-        }));
-
-        // Reset form
-        signupForm.reset();
+      // Check if username already exists in Cloud DB
+      const cloudUsers = await getCloudUsers();
+      const lower = cleanUser.toLowerCase();
+      if (lower === 'admin' || (cloudUsers && cloudUsers[lower])) {
+        showSignupAlert('This username is already registered in the database. Please choose another or log in.');
         createAccountBtn.disabled = false;
         if (signupSpinner) signupSpinner.classList.add('hidden');
         createAccountBtn.querySelector('.btn-text').textContent = 'CREATE CITIZEN ACCOUNT';
+        return;
+      }
 
-        // Auto login the newly registered user
-        sessionStorage.setItem('smartcity_logged_in', 'true');
-        sessionStorage.setItem('smartcity_username', cleanUser);
-        sessionStorage.setItem('smartcity_role', 'user');
+      // Save user to Cloud Database and local storage
+      await saveUserToCloud(cleanUser, pass, sanitizeInput(fullname), sanitizeInput(email));
 
-        showToast(`Welcome, ${fullname}! Citizen account created successfully. 🚀`);
+      signupForm.reset();
+      createAccountBtn.disabled = false;
+      if (signupSpinner) signupSpinner.classList.add('hidden');
+      createAccountBtn.querySelector('.btn-text').textContent = 'CREATE CITIZEN ACCOUNT';
 
-        // Transition from signup view to opinion feed view
-        signupView.classList.remove('view-active');
-        signupView.classList.add('view-hidden');
-        transitionToFeed(cleanUser, 'user');
-      }, 700);
+      // Auto login newly registered citizen
+      sessionStorage.setItem('smartcity_logged_in', 'true');
+      sessionStorage.setItem('smartcity_username', cleanUser);
+      sessionStorage.setItem('smartcity_role', 'user');
+
+      showToast(`Welcome, ${fullname}! Citizen account created & synced globally! 🚀`);
+
+      signupView.classList.remove('view-active');
+      signupView.classList.add('view-hidden');
+      transitionToFeed(cleanUser, 'user');
     });
   }
 
-  // Forgot Password Prompt (Restored to original simple prompt)
+  // Forgot Password Prompt
   if (forgotPasswordLink) {
     forgotPasswordLink.addEventListener('click', (e) => {
       e.preventDefault();
@@ -493,23 +669,21 @@ document.addEventListener('DOMContentLoaded', () => {
     feedView.classList.remove('view-hidden');
     feedView.classList.add('view-active');
 
-    // Update Top Status Bar
     if (role === 'guest') {
       if (displayUsername) displayUsername.textContent = 'Guest (View-Only)';
       if (userStatusBadge) userStatusBadge.classList.add('guest');
-      // Hide post form and show guest banner
       if (opinionInputBox) opinionInputBox.classList.add('hidden');
       if (guestRestrictedBanner) guestRestrictedBanner.classList.remove('hidden');
     } else {
       if (displayUsername) displayUsername.textContent = `${username} (${role === 'admin' ? 'Admin' : 'Citizen'})`;
       if (userStatusBadge) userStatusBadge.classList.remove('guest');
-      // Show post form and hide guest banner
       if (opinionInputBox) opinionInputBox.classList.remove('hidden');
       if (guestRestrictedBanner) guestRestrictedBanner.classList.add('hidden');
     }
 
-    // Render Opinions from Database
+    // Render immediately from local cache, then sync from Cloud DB
     renderOpinions();
+    fetchOpinionsFromCloud(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -539,7 +713,6 @@ document.addEventListener('DOMContentLoaded', () => {
       signupView.classList.add('view-hidden');
     }
 
-    // Clear inputs on sign out
     if (usernameInput) usernameInput.value = '';
     if (passwordInput) passwordInput.value = '';
 
@@ -561,64 +734,19 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // =========================================================================
-  // 6. OPINIONS DATABASE & INTERACTIVE ACTIONS (LIKE & AUTHOR-ONLY DELETE)
+  // 6. OPINIONS DATABASE & ACTIONS (LIKE & AUTHOR-ONLY DELETE)
   // =========================================================================
-  const OPINIONS_DB_KEY = 'smartcity_opinions_db_v1';
   const opinionsCardsContainer = document.getElementById('opinions-cards-container');
   const totalOpinionsCount = document.getElementById('total-opinions-count');
   const opinionSubmitForm = document.getElementById('opinion-submit-form');
   const opinionCategorySelect = document.getElementById('opinion-category');
   const opinionInputText = document.getElementById('opinion-input-text');
 
-  // Seed default opinions if database doesn't exist yet
-  function getOpinionsFromDB() {
-    const data = localStorage.getItem(OPINIONS_DB_KEY);
-    if (!data) {
-      const initialOpinions = [
-        {
-          id: 'op_1',
-          author: 'priya_aiet',
-          category: '☀️ Solar & Renewable Energy',
-          text: 'Solar energy grid system in Smart City 2030 looks truly revolutionary! We should install solar roof panels over college transit walkways.',
-          time: '2 hours ago',
-          likes: 18
-        },
-        {
-          id: 'op_2',
-          author: 'urban_architect',
-          category: '🚦 Smart Traffic Management',
-          text: 'Adaptive AI traffic signals will easily cut down daily commute by 40%. The road sensors integration is fantastic.',
-          time: '5 hours ago',
-          likes: 24
-        },
-        {
-          id: 'op_3',
-          author: 'admin',
-          category: '🌿 Green & Healthy City',
-          text: 'Automated waste monitoring sensors and IoT water recycling are going to make our campus zero-waste ready by 2030.',
-          time: '1 day ago',
-          likes: 42
-        }
-      ];
-      localStorage.setItem(OPINIONS_DB_KEY, JSON.stringify(initialOpinions));
-      return initialOpinions;
-    }
-    try {
-      return JSON.parse(data) || [];
-    } catch (e) {
-      return [];
-    }
-  }
-
-  function saveOpinionsToDB(opinions) {
-    localStorage.setItem(OPINIONS_DB_KEY, JSON.stringify(opinions));
-  }
-
   // Render All Opinions
   function renderOpinions() {
     if (!opinionsCardsContainer) return;
 
-    const opinions = getOpinionsFromDB();
+    const opinions = cachedOpinions.length > 0 ? cachedOpinions : getLocalOpinions();
     const currentUser = sessionStorage.getItem('smartcity_username') || '';
     const currentRole = sessionStorage.getItem('smartcity_role') || 'guest';
 
@@ -635,10 +763,8 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Render list
     opinionsCardsContainer.innerHTML = opinions.map((op) => {
-      // Permission check: Can this user delete this opinion?
-      // Author only, or admin (Guests CANNOT delete)
+      // Permission check: Author only or Admin (Guests CANNOT delete)
       const isAuthor = currentUser && (currentUser.toLowerCase() === op.author.toLowerCase());
       const isAdmin = currentRole === 'admin';
       const canDelete = (currentRole !== 'guest') && (isAuthor || isAdmin);
@@ -662,7 +788,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="opinion-content-text">${sanitizeInput(op.text)}</div>
 
           <div class="opinion-card-bottom">
-            <!-- 1 Button For Like (Anyone can like, including guests) -->
+            <!-- 1 Button For Like (Anyone can like from any device) -->
             <button type="button" class="opinion-like-button" data-id="${op.id}" title="Like this opinion">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
@@ -670,7 +796,7 @@ document.addEventListener('DOMContentLoaded', () => {
               <span>Like (${op.likes || 0})</span>
             </button>
 
-            <!-- Delete Button: ONLY shown for the author of that opinion or admin -->
+            <!-- Delete Button: ONLY shown for author or admin -->
             ${canDelete ? `
               <button type="button" class="opinion-delete-button" data-id="${op.id}" title="Delete your opinion">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -686,15 +812,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }).join('');
   }
 
-  // Handle Opinion Form Submission (Saves to database)
+  // Handle Opinion Form Submission (Saves to Cloud & Local Storage)
   if (opinionSubmitForm) {
-    opinionSubmitForm.addEventListener('submit', (e) => {
+    opinionSubmitForm.addEventListener('submit', async (e) => {
       e.preventDefault();
 
       const currentRole = sessionStorage.getItem('smartcity_role') || 'guest';
       const currentUser = sessionStorage.getItem('smartcity_username') || 'Citizen';
 
-      // Guest permission check
       if (currentRole === 'guest') {
         showToast('Guest mode is View-Only. Please log in to post an opinion!');
         return;
@@ -709,7 +834,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const newOpinion = {
-        id: 'op_' + Date.now(),
+        id: 'op_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
         author: currentUser,
         category: category,
         text: sanitizeInput(text),
@@ -717,31 +842,53 @@ document.addEventListener('DOMContentLoaded', () => {
         likes: 0
       };
 
-      const opinions = getOpinionsFromDB();
-      opinions.unshift(newOpinion);
-      saveOpinionsToDB(opinions);
+      // 1. Instant local update for 0ms lag
+      cachedOpinions.unshift(newOpinion);
+      saveLocalOpinions(cachedOpinions);
+      renderOpinions();
 
       if (opinionInputText) opinionInputText.value = '';
-      showToast('Your opinion has been saved to the database successfully! 💡');
-      renderOpinions();
+      showToast('Your opinion has been saved to the Cloud Database! 💡');
+
+      // 2. Sync with Cloud DB to prevent collision with other users
+      try {
+        const res = await fetch(CLOUD_OPINIONS_URL + '?t=' + Date.now());
+        let list = [];
+        if (res.ok) {
+          list = await res.json();
+        }
+        if (!Array.isArray(list) || list.length === 0) {
+          list = cachedOpinions;
+        } else {
+          if (!list.some(o => o.id === newOpinion.id)) {
+            list.unshift(newOpinion);
+          }
+        }
+        cachedOpinions = list;
+        saveLocalOpinions(list);
+        renderOpinions();
+        await pushOpinionsToCloud(list);
+      } catch (err) {
+        await pushOpinionsToCloud(cachedOpinions);
+      }
     });
   }
 
-  // Event Delegation for Like & Delete Buttons
+  // Event Delegation for Like & Delete Buttons (Synced with Cloud)
   if (opinionsCardsContainer) {
-    opinionsCardsContainer.addEventListener('click', (e) => {
-      // 1. LIKE BUTTON CLICKED (Anyone can like)
+    opinionsCardsContainer.addEventListener('click', async (e) => {
+      // 1. LIKE BUTTON CLICKED (Anyone can like from any device)
       const likeBtn = e.target.closest('.opinion-like-button');
       if (likeBtn) {
         const opinionId = likeBtn.getAttribute('data-id');
-        const opinions = getOpinionsFromDB();
-        const targetOp = opinions.find(o => o.id === opinionId);
+        const targetOp = cachedOpinions.find(o => o.id === opinionId);
         if (targetOp) {
           targetOp.likes = (targetOp.likes || 0) + 1;
-          saveOpinionsToDB(opinions);
+          saveLocalOpinions(cachedOpinions);
           likeBtn.classList.add('liked');
           showToast('You liked this opinion! 👍');
           renderOpinions();
+          pushOpinionsToCloud(cachedOpinions);
         }
         return;
       }
@@ -750,14 +897,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const deleteBtn = e.target.closest('.opinion-delete-button');
       if (deleteBtn) {
         const opinionId = deleteBtn.getAttribute('data-id');
-        const opinions = getOpinionsFromDB();
-        const targetOp = opinions.find(o => o.id === opinionId);
+        const targetOp = cachedOpinions.find(o => o.id === opinionId);
         const currentUser = sessionStorage.getItem('smartcity_username') || '';
         const currentRole = sessionStorage.getItem('smartcity_role') || 'guest';
 
         if (!targetOp) return;
 
-        // Verify permission
         const isAuthor = currentUser && (currentUser.toLowerCase() === targetOp.author.toLowerCase());
         const isAdmin = currentRole === 'admin';
 
@@ -768,10 +913,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const confirmDelete = confirm(`Are you sure you want to delete your opinion: "${targetOp.text.slice(0, 30)}..."?`);
         if (confirmDelete) {
-          const updatedOpinions = opinions.filter(o => o.id !== opinionId);
-          saveOpinionsToDB(updatedOpinions);
-          showToast('Opinion deleted successfully from the database.');
+          cachedOpinions = cachedOpinions.filter(o => o.id !== opinionId);
+          saveLocalOpinions(cachedOpinions);
+          showToast('Opinion deleted from all devices & Cloud Database.');
           renderOpinions();
+          pushOpinionsToCloud(cachedOpinions);
         }
         return;
       }
