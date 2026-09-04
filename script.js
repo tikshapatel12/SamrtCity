@@ -168,46 +168,75 @@ document.addEventListener('DOMContentLoaded', () => {
   // =========================================================================
   // 2. PASSWORD VISIBILITY TOGGLE (Seen/Hidden Eye Icon - Requirement 6)
   // =========================================================================
-  const togglePasswordBtn = document.getElementById('toggle-password-btn');
-  const passwordInput = document.getElementById('password-input');
-  const eyeIcon = document.getElementById('eye-icon');
-  const eyeSlashIcon = document.getElementById('eye-slash-icon');
-
-  if (togglePasswordBtn && passwordInput) {
-    togglePasswordBtn.addEventListener('click', () => {
-      const isPassword = passwordInput.getAttribute('type') === 'password';
-      passwordInput.setAttribute('type', isPassword ? 'text' : 'password');
-      
-      if (isPassword) {
-        eyeIcon.classList.add('hidden');
-        eyeSlashIcon.classList.remove('hidden');
-        togglePasswordBtn.setAttribute('title', 'Hide password');
-      } else {
-        eyeIcon.classList.remove('hidden');
-        eyeSlashIcon.classList.add('hidden');
-        togglePasswordBtn.setAttribute('title', 'Show password');
-      }
-    });
-  }
-
+  // 2. ALL DOM ELEMENT REFERENCES (Declared upfront to prevent ReferenceErrors)
   // =========================================================================
-  // 3. 100% SECURITY & AUTHENTICATION CONTROLLER (Requirements 1, 4, 5, 7)
-  // =========================================================================
+  // Views
+  const loginView = document.getElementById('login-view');
+  const signupView = document.getElementById('signup-view');
+  const feedView = document.getElementById('feed-view');
+
+  // Login View Elements
   const loginForm = document.getElementById('login-form');
   const usernameInput = document.getElementById('username-input');
+  const passwordInput = document.getElementById('password-input');
+  const togglePasswordBtn = document.getElementById('toggle-password-btn');
+  const eyeIcon = document.getElementById('eye-icon');
+  const eyeSlashIcon = document.getElementById('eye-slash-icon');
   const loginBtn = document.getElementById('login-btn');
   const loginSpinner = document.getElementById('login-spinner');
   const authAlert = document.getElementById('auth-alert');
   const authAlertMsg = document.getElementById('auth-alert-msg');
   const guestBtn = document.getElementById('guest-btn');
+  const signupToggleLink = document.getElementById('signup-toggle-link');
   const forgotPasswordLink = document.getElementById('forgot-password-link');
 
-  const loginView = document.getElementById('login-view');
-  const feedView = document.getElementById('feed-view');
+  // Sign Up View Elements
+  const backToLoginLink = document.getElementById('back-to-login-link');
+  const signupForm = document.getElementById('signup-form');
+  const signupFullname = document.getElementById('signup-fullname');
+  const signupUsername = document.getElementById('signup-username');
+  const signupEmail = document.getElementById('signup-email');
+  const signupPassword = document.getElementById('signup-password');
+  const signupConfirmPassword = document.getElementById('signup-confirm-password');
+  const toggleSignupPasswordBtn = document.getElementById('toggle-signup-password-btn');
+  const signupEyeIcon = document.getElementById('signup-eye-icon');
+  const signupEyeSlashIcon = document.getElementById('signup-eye-slash-icon');
+  const signupAlert = document.getElementById('signup-alert');
+  const signupAlertMsg = document.getElementById('signup-alert-msg');
+  const signupSpinner = document.getElementById('signup-spinner');
+  const createAccountBtn = document.getElementById('create-account-btn');
+
+  // Feed View Elements
   const displayUsername = document.getElementById('display-username');
   const userInitials = document.getElementById('user-initials');
+  const userStatusBadge = document.getElementById('user-status-badge');
+  const signoutBtn = document.getElementById('signout-btn');
+  const opinionInputBox = document.getElementById('opinion-input-box');
+  const guestRestrictedBanner = document.getElementById('guest-restricted-banner');
+  const guestLoginRedirectBtn = document.getElementById('guest-login-redirect-btn');
+  const opinionSubmitForm = document.getElementById('opinion-submit-form');
+  const opinionCategorySelect = document.getElementById('opinion-category');
+  const opinionInputText = document.getElementById('opinion-input-text');
+  const opinionsCardsContainer = document.getElementById('opinions-cards-container');
+  const totalOpinionsCount = document.getElementById('total-opinions-count');
 
-  // Explicitly keep username and password fields blank by default (No auto-fill)
+  // Toast Notification
+  const toastNotification = document.getElementById('toast-notification');
+  const toastMessage = document.getElementById('toast-message');
+  let toastTimer = null;
+
+  function showToast(message) {
+    if (!toastNotification || !toastMessage) return;
+    toastMessage.textContent = message;
+    toastNotification.classList.remove('hidden');
+
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toastNotification.classList.add('hidden');
+    }, 3200);
+  }
+
+  // Explicitly keep username and password blank by default (No auto-fill)
   if (usernameInput) usernameInput.value = '';
   if (passwordInput) passwordInput.value = '';
 
@@ -215,11 +244,19 @@ document.addEventListener('DOMContentLoaded', () => {
   let isLocked = false;
 
   function showAuthAlert(message) {
+    if (!authAlert || !authAlertMsg) return;
     authAlertMsg.textContent = message;
     authAlert.classList.remove('hidden');
     setTimeout(() => {
       authAlert.classList.add('hidden');
     }, 4500);
+  }
+
+  function showSignupAlert(msg) {
+    if (!signupAlert || !signupAlertMsg) return;
+    signupAlertMsg.textContent = msg;
+    signupAlert.classList.remove('hidden');
+    setTimeout(() => signupAlert.classList.add('hidden'), 4500);
   }
 
   function sanitizeInput(str) {
@@ -228,14 +265,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // =========================================================================
-  // GLOBAL CLOUD DATABASE CONFIGURATION (Real-time sync across Mobile & PC)
+  // 3. GLOBAL CLOUD DATABASE ENGINE (Real-time sync across Mobile & PC)
   // =========================================================================
   const CLOUD_DB_BASE = 'https://kvdb.io/8vfz1M6eKdm2wTwt6mrZSG';
   const CLOUD_OPINIONS_URL = `${CLOUD_DB_BASE}/smartcity_opinions`;
   const CLOUD_USERS_URL = `${CLOUD_DB_BASE}/smartcity_users`;
   const OPINIONS_DB_KEY = 'smartcity_opinions_db_v1';
 
-  // In-memory opinions cache for instant 0ms render
   let cachedOpinions = [];
 
   const defaultSeedOpinions = [
@@ -265,7 +301,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   ];
 
-  // Helper: Read local opinions cache
   function getLocalOpinions() {
     try {
       const data = localStorage.getItem(OPINIONS_DB_KEY);
@@ -277,14 +312,12 @@ document.addEventListener('DOMContentLoaded', () => {
     return defaultSeedOpinions;
   }
 
-  // Helper: Save local opinions cache
   function saveLocalOpinions(ops) {
     try {
       localStorage.setItem(OPINIONS_DB_KEY, JSON.stringify(ops));
     } catch (e) {}
   }
 
-  // Helper: Fetch fresh opinions from Cloud DB and ALWAYS render them
   async function fetchOpinionsFromCloud() {
     try {
       const res = await fetch(CLOUD_OPINIONS_URL + '?t=' + Date.now(), { cache: 'no-store' });
@@ -293,7 +326,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (Array.isArray(cloudOps) && cloudOps.length > 0) {
           cachedOpinions = cloudOps;
           saveLocalOpinions(cloudOps);
-          renderOpinions(); // ALWAYS render when fresh cloud data arrives!
+          renderOpinions();
         }
       }
     } catch (err) {
@@ -301,7 +334,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Helper: Push opinions to Cloud DB
   async function pushOpinionsToCloud(ops) {
     try {
       await fetch(CLOUD_OPINIONS_URL, {
@@ -314,7 +346,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Helper: Fetch Cloud Users (with local cache fallback)
   async function getCloudUsers() {
     try {
       const controller = new AbortController();
@@ -337,7 +368,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Helper: Save new user to Cloud & Local
   async function saveUserToCloud(username, password, fullname, email) {
     localStorage.setItem('smartcity_user_' + username.toLowerCase(), password);
     localStorage.setItem('smartcity_profile_' + username.toLowerCase(), JSON.stringify({
@@ -367,389 +397,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Startup: Load local cache, render immediately, and fetch from cloud
-  cachedOpinions = getLocalOpinions();
-  fetchOpinionsFromCloud();
-
-  // Real-time live polling (Every 5 seconds syncs any new opinions/likes from other devices!)
-  setInterval(() => {
-    fetchOpinionsFromCloud();
-  }, 5000);
-
   // =========================================================================
-  // 3. LOGIN FORM SUBMISSION (Cross-Device Cloud Authentication)
+  // 4. RENDER OPINIONS & VIEW TRANSITIONS
   // =========================================================================
-  if (loginForm) {
-    loginForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-
-      if (isLocked) {
-        showAuthAlert('Security Alert: Account temporarily locked due to failed attempts. Please wait 10s.');
-        return;
-      }
-
-      const rawUsername = usernameInput.value.trim();
-      const rawPassword = passwordInput.value.trim();
-      const username = sanitizeInput(rawUsername);
-      const password = rawPassword;
-
-      if (!username || !password) {
-        showAuthAlert('Please fill out both username and password fields.');
-        return;
-      }
-
-      if (password.length < 6) {
-        showAuthAlert('Security Warning: Password must contain at least 6 characters.');
-        return;
-      }
-
-      // Show loading spinner
-      loginBtn.disabled = true;
-      loginSpinner.classList.remove('hidden');
-      loginBtn.querySelector('.btn-text').textContent = 'AUTHENTICATING...';
-
-      const lowerUser = username.toLowerCase();
-      let authenticated = false;
-
-      // 1. Check Admin credentials
-      const storedAdminPass = localStorage.getItem('smartcity_user_admin') || 'smartcity2030';
-      if (lowerUser === 'admin' && (password === 'smartcity2030' || password === storedAdminPass)) {
-        authenticated = true;
-      }
-
-      // 2. Check Cloud Database Users (Allows login on ANY device: Mobile, PC, etc.)
-      if (!authenticated) {
-        try {
-          const cloudUsers = await getCloudUsers();
-          if (cloudUsers && cloudUsers[lowerUser] && cloudUsers[lowerUser].password === password) {
-            authenticated = true;
-          }
-        } catch (e) {}
-      }
-
-      // 3. Check Local User cache fallback
-      if (!authenticated) {
-        const localPass = localStorage.getItem('smartcity_user_' + lowerUser);
-        if (localPass && localPass === password) {
-          authenticated = true;
-        }
-      }
-
-      // 4. Default citizen credentials check
-      if (!authenticated && username.length >= 3 && password.length >= 6) {
-        authenticated = true;
-      }
-
-      if (authenticated) {
-        failedAttempts = 0;
-        const role = (lowerUser === 'admin') ? 'admin' : 'user';
-        sessionStorage.setItem('smartcity_logged_in', 'true');
-        sessionStorage.setItem('smartcity_username', username);
-        sessionStorage.setItem('smartcity_role', role);
-
-        localStorage.setItem('smartcity_logged_in', 'true');
-        localStorage.setItem('smartcity_username', username);
-        localStorage.setItem('smartcity_role', role);
-
-        showToast(`Welcome, ${username}! 100% Secure Session Active.`);
-        transitionToFeed(username, role);
-      } else {
-        failedAttempts++;
-        if (failedAttempts >= 4) {
-          isLocked = true;
-          showAuthAlert('Security Lockdown: Too many failed attempts. Try again in 10s.');
-          setTimeout(() => {
-            isLocked = false;
-            failedAttempts = 0;
-          }, 10000);
-        } else {
-          showAuthAlert(`Invalid credentials. Attempt ${failedAttempts}/4 before lockout.`);
-        }
-      }
-
-      loginBtn.disabled = false;
-      loginSpinner.classList.add('hidden');
-      loginBtn.querySelector('.btn-text').textContent = 'LOGIN';
-    });
-  }
-
-  // Explore As Guest Action (View-Only Mode)
-  if (guestBtn) {
-    guestBtn.addEventListener('click', () => {
-      sessionStorage.setItem('smartcity_logged_in', 'true');
-      sessionStorage.setItem('smartcity_username', 'Guest');
-      sessionStorage.setItem('smartcity_role', 'guest');
-
-      localStorage.setItem('smartcity_logged_in', 'true');
-      localStorage.setItem('smartcity_username', 'Guest');
-      localStorage.setItem('smartcity_role', 'guest');
-
-      showToast('Exploring as Guest: View & Like Access Enabled.');
-      transitionToFeed('Guest', 'guest');
-    });
-  }
-
-  // =========================================================================
-  // DEDICATED SIGN UP PAGE CONTROLLER (Cross-Device Cloud Registration)
-  // =========================================================================
-  const signupView = document.getElementById('signup-view');
-  const signupToggleLink = document.getElementById('signup-toggle-link');
-  const backToLoginLink = document.getElementById('back-to-login-link');
-  const signupForm = document.getElementById('signup-form');
-  const signupFullname = document.getElementById('signup-fullname');
-  const signupUsername = document.getElementById('signup-username');
-  const signupEmail = document.getElementById('signup-email');
-  const signupPassword = document.getElementById('signup-password');
-  const signupConfirmPassword = document.getElementById('signup-confirm-password');
-  const toggleSignupPasswordBtn = document.getElementById('toggle-signup-password-btn');
-  const signupEyeIcon = document.getElementById('signup-eye-icon');
-  const signupEyeSlashIcon = document.getElementById('signup-eye-slash-icon');
-  const signupAlert = document.getElementById('signup-alert');
-  const signupAlertMsg = document.getElementById('signup-alert-msg');
-  const signupSpinner = document.getElementById('signup-spinner');
-  const createAccountBtn = document.getElementById('create-account-btn');
-
-  function showSignupAlert(msg) {
-    if (signupAlertMsg && signupAlert) {
-      signupAlertMsg.textContent = msg;
-      signupAlert.classList.remove('hidden');
-      setTimeout(() => signupAlert.classList.add('hidden'), 4500);
-    }
-  }
-
-  // Switch from Login to Sign Up Page
-  if (signupToggleLink && signupView && loginView) {
-    signupToggleLink.addEventListener('click', (e) => {
-      e.preventDefault();
-      loginView.classList.remove('view-active');
-      loginView.classList.add('view-hidden');
-
-      signupView.classList.remove('view-hidden');
-      signupView.classList.add('view-active');
-
-      if (signupFullname) signupFullname.focus();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
-  }
-
-  // Switch from Sign Up to Login Page
-  if (backToLoginLink && signupView && loginView) {
-    backToLoginLink.addEventListener('click', (e) => {
-      e.preventDefault();
-      signupView.classList.remove('view-active');
-      signupView.classList.add('view-hidden');
-
-      loginView.classList.remove('view-hidden');
-      loginView.classList.add('view-active');
-
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
-  }
-
-  // Password Visibility Toggle on Sign Up
-  if (toggleSignupPasswordBtn && signupPassword) {
-    toggleSignupPasswordBtn.addEventListener('click', () => {
-      const isPass = signupPassword.getAttribute('type') === 'password';
-      signupPassword.setAttribute('type', isPass ? 'text' : 'password');
-      if (signupConfirmPassword) {
-        signupConfirmPassword.setAttribute('type', isPass ? 'text' : 'password');
-      }
-
-      if (isPass) {
-        signupEyeIcon.classList.add('hidden');
-        signupEyeSlashIcon.classList.remove('hidden');
-      } else {
-        signupEyeIcon.classList.remove('hidden');
-        signupEyeSlashIcon.classList.add('hidden');
-      }
-    });
-  }
-
-  // Handle Sign Up Form Submission (Saves to Cloud so any PC or Mobile can log in!)
-  if (signupForm) {
-    signupForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-
-      const fullname = signupFullname.value.trim();
-      const rawUser = signupUsername.value.trim();
-      const email = signupEmail.value.trim();
-      const pass = signupPassword.value.trim();
-      const confirmPass = signupConfirmPassword.value.trim();
-
-      if (!fullname || !rawUser || !email || !pass || !confirmPass) {
-        showSignupAlert('All registration fields are required.');
-        return;
-      }
-
-      const cleanUser = sanitizeInput(rawUser);
-      if (cleanUser.length < 3) {
-        showSignupAlert('Username must contain at least 3 characters.');
-        return;
-      }
-
-      if (pass.length < 6) {
-        showSignupAlert('Password must contain at least 6 characters.');
-        return;
-      }
-
-      if (pass !== confirmPass) {
-        showSignupAlert('Passwords do not match. Please verify your password.');
-        return;
-      }
-
-      createAccountBtn.disabled = true;
-      if (signupSpinner) signupSpinner.classList.remove('hidden');
-      createAccountBtn.querySelector('.btn-text').textContent = 'CREATING CITIZEN PROFILE...';
-
-      // Check if username already exists in Cloud DB
-      const cloudUsers = await getCloudUsers();
-      const lower = cleanUser.toLowerCase();
-      if (lower === 'admin' || (cloudUsers && cloudUsers[lower])) {
-        showSignupAlert('This username is already registered in the database. Please choose another or log in.');
-        createAccountBtn.disabled = false;
-        if (signupSpinner) signupSpinner.classList.add('hidden');
-        createAccountBtn.querySelector('.btn-text').textContent = 'CREATE CITIZEN ACCOUNT';
-        return;
-      }
-
-      // Save user to Cloud Database and local storage
-      await saveUserToCloud(cleanUser, pass, sanitizeInput(fullname), sanitizeInput(email));
-
-      signupForm.reset();
-      createAccountBtn.disabled = false;
-      if (signupSpinner) signupSpinner.classList.add('hidden');
-      createAccountBtn.querySelector('.btn-text').textContent = 'CREATE CITIZEN ACCOUNT';
-
-      // Auto login newly registered citizen in both sessionStorage and localStorage
-      sessionStorage.setItem('smartcity_logged_in', 'true');
-      sessionStorage.setItem('smartcity_username', cleanUser);
-      sessionStorage.setItem('smartcity_role', 'user');
-
-      localStorage.setItem('smartcity_logged_in', 'true');
-      localStorage.setItem('smartcity_username', cleanUser);
-      localStorage.setItem('smartcity_role', 'user');
-
-      showToast(`Welcome, ${fullname}! Citizen account created & synced globally! 🚀`);
-
-      signupView.classList.remove('view-active');
-      signupView.classList.add('view-hidden');
-      transitionToFeed(cleanUser, 'user');
-    });
-  }
-
-  // Forgot Password Prompt
-  if (forgotPasswordLink) {
-    forgotPasswordLink.addEventListener('click', (e) => {
-      e.preventDefault();
-      alert('Security Protocol:\nDefault Demo Credentials:\nUsername: admin\nPassword: smartcity2030\n\nOr click "Sign Up" to create your new citizen account.');
-    });
-  }
-
-  // =========================================================================
-  // 4. TRANSITION TO OPINION HUB & ROLE MANAGEMENT
-  // =========================================================================
-  const userStatusBadge = document.getElementById('user-status-badge');
-  const opinionInputBox = document.getElementById('opinion-input-box');
-  const guestRestrictedBanner = document.getElementById('guest-restricted-banner');
-  const guestLoginRedirectBtn = document.getElementById('guest-login-redirect-btn');
-
-  function transitionToFeed(username, role) {
-    loginView.classList.remove('view-active');
-    loginView.classList.add('view-hidden');
-    if (signupView) {
-      signupView.classList.remove('view-active');
-      signupView.classList.add('view-hidden');
-    }
-
-    feedView.classList.remove('view-hidden');
-    feedView.classList.add('view-active');
-
-    if (role === 'guest') {
-      if (displayUsername) displayUsername.textContent = 'Guest (View-Only)';
-      if (userStatusBadge) userStatusBadge.classList.add('guest');
-      if (opinionInputBox) opinionInputBox.classList.add('hidden');
-      if (guestRestrictedBanner) guestRestrictedBanner.classList.remove('hidden');
-    } else {
-      if (displayUsername) displayUsername.textContent = `${username} (${role === 'admin' ? 'Admin' : 'Citizen'})`;
-      if (userStatusBadge) userStatusBadge.classList.remove('guest');
-      if (opinionInputBox) opinionInputBox.classList.remove('hidden');
-      if (guestRestrictedBanner) guestRestrictedBanner.classList.add('hidden');
-    }
-
-    // Render immediately from cache, then fetch latest from Cloud DB
-    renderOpinions();
-    fetchOpinionsFromCloud();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  // Guest "Log In / Sign Up to Post" Redirect Button
-  if (guestLoginRedirectBtn) {
-    guestLoginRedirectBtn.addEventListener('click', () => {
-      performSignout('Please log in with an account to submit your opinion.');
-    });
-  }
-
-  // =========================================================================
-  // 5. SIGN OUT FUNCTIONALITY (Requirement 2)
-  // =========================================================================
-  const signoutBtn = document.getElementById('signout-btn');
-  
-  function performSignout(customMessage) {
-    sessionStorage.removeItem('smartcity_logged_in');
-    sessionStorage.removeItem('smartcity_username');
-    sessionStorage.removeItem('smartcity_role');
-
-    localStorage.removeItem('smartcity_logged_in');
-    localStorage.removeItem('smartcity_username');
-    localStorage.removeItem('smartcity_role');
-
-    showToast(customMessage || 'Signed out safely. Session ended.');
-
-    feedView.classList.remove('view-active');
-    feedView.classList.add('view-hidden');
-    if (signupView) {
-      signupView.classList.remove('view-active');
-      signupView.classList.add('view-hidden');
-    }
-
-    if (usernameInput) usernameInput.value = '';
-    if (passwordInput) passwordInput.value = '';
-
-    loginView.classList.remove('view-hidden');
-    loginView.classList.add('view-active');
-
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  if (signoutBtn) {
-    signoutBtn.addEventListener('click', () => performSignout());
-  }
-
-  // Restore session on reload (Checks both sessionStorage and localStorage)
-  const isSavedLogin = (sessionStorage.getItem('smartcity_logged_in') === 'true') || (localStorage.getItem('smartcity_logged_in') === 'true');
-  if (isSavedLogin) {
-    const savedUser = sessionStorage.getItem('smartcity_username') || localStorage.getItem('smartcity_username') || 'admin';
-    const savedRole = sessionStorage.getItem('smartcity_role') || localStorage.getItem('smartcity_role') || 'user';
-    sessionStorage.setItem('smartcity_logged_in', 'true');
-    sessionStorage.setItem('smartcity_username', savedUser);
-    sessionStorage.setItem('smartcity_role', savedRole);
-    transitionToFeed(savedUser, savedRole);
-  }
-
-  // =========================================================================
-  // 6. OPINIONS DATABASE & ACTIONS (LIKE & AUTHOR-ONLY DELETE)
-  // =========================================================================
-  const opinionsCardsContainer = document.getElementById('opinions-cards-container');
-  const totalOpinionsCount = document.getElementById('total-opinions-count');
-  const opinionSubmitForm = document.getElementById('opinion-submit-form');
-  const opinionCategorySelect = document.getElementById('opinion-category');
-  const opinionInputText = document.getElementById('opinion-input-text');
-
-  // Render All Opinions
   function renderOpinions() {
     if (!opinionsCardsContainer) return;
 
-    // Retrieve opinions safely from in-memory cache or local store
     let opinions = cachedOpinions;
     if (!Array.isArray(opinions) || opinions.length === 0) {
       opinions = getLocalOpinions();
@@ -827,13 +480,343 @@ document.addEventListener('DOMContentLoaded', () => {
     }).join('');
   }
 
-  // Handle Opinion Form Submission (Saves to Cloud & Local Storage)
+  function transitionToFeed(username, role) {
+    if (loginView) {
+      loginView.classList.remove('view-active');
+      loginView.classList.add('view-hidden');
+    }
+    if (signupView) {
+      signupView.classList.remove('view-active');
+      signupView.classList.add('view-hidden');
+    }
+    if (feedView) {
+      feedView.classList.remove('view-hidden');
+      feedView.classList.add('view-active');
+    }
+
+    if (role === 'guest') {
+      if (displayUsername) displayUsername.textContent = 'Guest (View-Only)';
+      if (userStatusBadge) userStatusBadge.classList.add('guest');
+      if (opinionInputBox) opinionInputBox.classList.add('hidden');
+      if (guestRestrictedBanner) guestRestrictedBanner.classList.remove('hidden');
+    } else {
+      if (displayUsername) displayUsername.textContent = `${username} (${role === 'admin' ? 'Admin' : 'Citizen'})`;
+      if (userStatusBadge) userStatusBadge.classList.remove('guest');
+      if (opinionInputBox) opinionInputBox.classList.remove('hidden');
+      if (guestRestrictedBanner) guestRestrictedBanner.classList.add('hidden');
+    }
+
+    renderOpinions();
+    fetchOpinionsFromCloud();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function performSignout(customMessage) {
+    sessionStorage.removeItem('smartcity_logged_in');
+    sessionStorage.removeItem('smartcity_username');
+    sessionStorage.removeItem('smartcity_role');
+
+    localStorage.removeItem('smartcity_logged_in');
+    localStorage.removeItem('smartcity_username');
+    localStorage.removeItem('smartcity_role');
+
+    showToast(customMessage || 'Signed out safely. Session ended.');
+
+    if (feedView) {
+      feedView.classList.remove('view-active');
+      feedView.classList.add('view-hidden');
+    }
+    if (signupView) {
+      signupView.classList.remove('view-active');
+      signupView.classList.add('view-hidden');
+    }
+
+    if (usernameInput) usernameInput.value = '';
+    if (passwordInput) passwordInput.value = '';
+
+    if (loginView) {
+      loginView.classList.remove('view-hidden');
+      loginView.classList.add('view-active');
+    }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // =========================================================================
+  // 5. EVENT LISTENERS
+  // =========================================================================
+  // Password Visibility Toggle (Login)
+  if (togglePasswordBtn && passwordInput) {
+    togglePasswordBtn.addEventListener('click', () => {
+      const isPassword = passwordInput.getAttribute('type') === 'password';
+      passwordInput.setAttribute('type', isPassword ? 'text' : 'password');
+      
+      if (isPassword) {
+        if (eyeIcon) eyeIcon.classList.add('hidden');
+        if (eyeSlashIcon) eyeSlashIcon.classList.remove('hidden');
+        togglePasswordBtn.setAttribute('title', 'Hide password');
+      } else {
+        if (eyeIcon) eyeIcon.classList.remove('hidden');
+        if (eyeSlashIcon) eyeSlashIcon.classList.add('hidden');
+        togglePasswordBtn.setAttribute('title', 'Show password');
+      }
+    });
+  }
+
+  // Login Form Submission
+  if (loginForm) {
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      if (isLocked) {
+        showAuthAlert('Security Alert: Account temporarily locked due to failed attempts. Please wait 10s.');
+        return;
+      }
+
+      const rawUsername = usernameInput.value.trim();
+      const rawPassword = passwordInput.value.trim();
+      const username = sanitizeInput(rawUsername);
+      const password = rawPassword;
+
+      if (!username || !password) {
+        showAuthAlert('Please fill out both username and password fields.');
+        return;
+      }
+
+      if (password.length < 6) {
+        showAuthAlert('Security Warning: Password must contain at least 6 characters.');
+        return;
+      }
+
+      loginBtn.disabled = true;
+      if (loginSpinner) loginSpinner.classList.remove('hidden');
+      loginBtn.querySelector('.btn-text').textContent = 'AUTHENTICATING...';
+
+      const lowerUser = username.toLowerCase();
+      let authenticated = false;
+
+      // 1. Check Admin
+      const storedAdminPass = localStorage.getItem('smartcity_user_admin') || 'smartcity2030';
+      if (lowerUser === 'admin' && (password === 'smartcity2030' || password === storedAdminPass)) {
+        authenticated = true;
+      }
+
+      // 2. Check Cloud DB Users
+      if (!authenticated) {
+        try {
+          const cloudUsers = await getCloudUsers();
+          if (cloudUsers && cloudUsers[lowerUser] && cloudUsers[lowerUser].password === password) {
+            authenticated = true;
+          }
+        } catch (e) {}
+      }
+
+      // 3. Check Local User cache
+      if (!authenticated) {
+        const localPass = localStorage.getItem('smartcity_user_' + lowerUser);
+        if (localPass && localPass === password) {
+          authenticated = true;
+        }
+      }
+
+      // 4. Default citizen credentials check
+      if (!authenticated && username.length >= 3 && password.length >= 6) {
+        authenticated = true;
+      }
+
+      if (authenticated) {
+        failedAttempts = 0;
+        const role = (lowerUser === 'admin') ? 'admin' : 'user';
+        sessionStorage.setItem('smartcity_logged_in', 'true');
+        sessionStorage.setItem('smartcity_username', username);
+        sessionStorage.setItem('smartcity_role', role);
+
+        localStorage.setItem('smartcity_logged_in', 'true');
+        localStorage.setItem('smartcity_username', username);
+        localStorage.setItem('smartcity_role', role);
+
+        showToast(`Welcome, ${username}! 100% Secure Session Active.`);
+        transitionToFeed(username, role);
+      } else {
+        failedAttempts++;
+        if (failedAttempts >= 4) {
+          isLocked = true;
+          showAuthAlert('Security Lockdown: Too many failed attempts. Try again in 10s.');
+          setTimeout(() => {
+            isLocked = false;
+            failedAttempts = 0;
+          }, 10000);
+        } else {
+          showAuthAlert(`Invalid credentials. Attempt ${failedAttempts}/4 before lockout.`);
+        }
+      }
+
+      loginBtn.disabled = false;
+      if (loginSpinner) loginSpinner.classList.add('hidden');
+      loginBtn.querySelector('.btn-text').textContent = 'LOGIN';
+    });
+  }
+
+  // Explore As Guest Action
+  if (guestBtn) {
+    guestBtn.addEventListener('click', () => {
+      sessionStorage.setItem('smartcity_logged_in', 'true');
+      sessionStorage.setItem('smartcity_username', 'Guest');
+      sessionStorage.setItem('smartcity_role', 'guest');
+
+      localStorage.setItem('smartcity_logged_in', 'true');
+      localStorage.setItem('smartcity_username', 'Guest');
+      localStorage.setItem('smartcity_role', 'guest');
+
+      showToast('Exploring as Guest: View & Like Access Enabled.');
+      transitionToFeed('Guest', 'guest');
+    });
+  }
+
+  // Switch to Sign Up View
+  if (signupToggleLink && signupView && loginView) {
+    signupToggleLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      loginView.classList.remove('view-active');
+      loginView.classList.add('view-hidden');
+
+      signupView.classList.remove('view-hidden');
+      signupView.classList.add('view-active');
+
+      if (signupFullname) signupFullname.focus();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }
+
+  // Switch back to Login View
+  if (backToLoginLink && signupView && loginView) {
+    backToLoginLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      signupView.classList.remove('view-active');
+      signupView.classList.add('view-hidden');
+
+      loginView.classList.remove('view-hidden');
+      loginView.classList.add('view-active');
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }
+
+  // Password Visibility Toggle (Sign Up)
+  if (toggleSignupPasswordBtn && signupPassword) {
+    toggleSignupPasswordBtn.addEventListener('click', () => {
+      const isPass = signupPassword.getAttribute('type') === 'password';
+      signupPassword.setAttribute('type', isPass ? 'text' : 'password');
+      if (signupConfirmPassword) {
+        signupConfirmPassword.setAttribute('type', isPass ? 'text' : 'password');
+      }
+
+      if (isPass) {
+        if (signupEyeIcon) signupEyeIcon.classList.add('hidden');
+        if (signupEyeSlashIcon) signupEyeSlashIcon.classList.remove('hidden');
+      } else {
+        if (signupEyeIcon) signupEyeIcon.classList.remove('hidden');
+        if (signupEyeSlashIcon) signupEyeSlashIcon.classList.add('hidden');
+      }
+    });
+  }
+
+  // Sign Up Form Submission
+  if (signupForm) {
+    signupForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const fullname = signupFullname.value.trim();
+      const rawUser = signupUsername.value.trim();
+      const email = signupEmail.value.trim();
+      const pass = signupPassword.value.trim();
+      const confirmPass = signupConfirmPassword.value.trim();
+
+      if (!fullname || !rawUser || !email || !pass || !confirmPass) {
+        showSignupAlert('All registration fields are required.');
+        return;
+      }
+
+      const cleanUser = sanitizeInput(rawUser);
+      if (cleanUser.length < 3) {
+        showSignupAlert('Username must contain at least 3 characters.');
+        return;
+      }
+
+      if (pass.length < 6) {
+        showSignupAlert('Password must contain at least 6 characters.');
+        return;
+      }
+
+      if (pass !== confirmPass) {
+        showSignupAlert('Passwords do not match. Please verify your password.');
+        return;
+      }
+
+      createAccountBtn.disabled = true;
+      if (signupSpinner) signupSpinner.classList.remove('hidden');
+      createAccountBtn.querySelector('.btn-text').textContent = 'CREATING CITIZEN PROFILE...';
+
+      const cloudUsers = await getCloudUsers();
+      const lower = cleanUser.toLowerCase();
+      if (lower === 'admin' || (cloudUsers && cloudUsers[lower])) {
+        showSignupAlert('This username is already registered in the database. Please choose another or log in.');
+        createAccountBtn.disabled = false;
+        if (signupSpinner) signupSpinner.classList.add('hidden');
+        createAccountBtn.querySelector('.btn-text').textContent = 'CREATE CITIZEN ACCOUNT';
+        return;
+      }
+
+      await saveUserToCloud(cleanUser, pass, sanitizeInput(fullname), sanitizeInput(email));
+
+      signupForm.reset();
+      createAccountBtn.disabled = false;
+      if (signupSpinner) signupSpinner.classList.add('hidden');
+      createAccountBtn.querySelector('.btn-text').textContent = 'CREATE CITIZEN ACCOUNT';
+
+      sessionStorage.setItem('smartcity_logged_in', 'true');
+      sessionStorage.setItem('smartcity_username', cleanUser);
+      sessionStorage.setItem('smartcity_role', 'user');
+
+      localStorage.setItem('smartcity_logged_in', 'true');
+      localStorage.setItem('smartcity_username', cleanUser);
+      localStorage.setItem('smartcity_role', 'user');
+
+      showToast(`Welcome, ${fullname}! Citizen account created & synced globally! 🚀`);
+
+      signupView.classList.remove('view-active');
+      signupView.classList.add('view-hidden');
+      transitionToFeed(cleanUser, 'user');
+    });
+  }
+
+  // Forgot Password Prompt
+  if (forgotPasswordLink) {
+    forgotPasswordLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      alert('Security Protocol:\nDefault Demo Credentials:\nUsername: admin\nPassword: smartcity2030\n\nOr click "Sign Up" to create your new citizen account.');
+    });
+  }
+
+  // Guest Login Redirect Button
+  if (guestLoginRedirectBtn) {
+    guestLoginRedirectBtn.addEventListener('click', () => {
+      performSignout('Please log in with an account to submit your opinion.');
+    });
+  }
+
+  // Sign Out Button
+  if (signoutBtn) {
+    signoutBtn.addEventListener('click', () => performSignout());
+  }
+
+  // Handle Opinion Form Submission
   if (opinionSubmitForm) {
     opinionSubmitForm.addEventListener('submit', async (e) => {
       e.preventDefault();
 
-      const currentRole = sessionStorage.getItem('smartcity_role') || 'guest';
-      const currentUser = sessionStorage.getItem('smartcity_username') || 'Citizen';
+      const currentRole = sessionStorage.getItem('smartcity_role') || localStorage.getItem('smartcity_role') || 'guest';
+      const currentUser = sessionStorage.getItem('smartcity_username') || localStorage.getItem('smartcity_username') || 'Citizen';
 
       if (currentRole === 'guest') {
         showToast('Guest mode is View-Only. Please log in to post an opinion!');
@@ -857,7 +840,6 @@ document.addEventListener('DOMContentLoaded', () => {
         likes: 0
       };
 
-      // 1. Instant local update for 0ms lag
       cachedOpinions.unshift(newOpinion);
       saveLocalOpinions(cachedOpinions);
       renderOpinions();
@@ -865,7 +847,6 @@ document.addEventListener('DOMContentLoaded', () => {
       if (opinionInputText) opinionInputText.value = '';
       showToast('Your opinion has been saved to the Cloud Database! 💡');
 
-      // 2. Sync with Cloud DB to prevent collision with other users
       try {
         const res = await fetch(CLOUD_OPINIONS_URL + '?t=' + Date.now(), { cache: 'no-store' });
         let list = [];
@@ -889,16 +870,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Event Delegation for Like & Delete Buttons (Synced with Cloud)
+  // Event Delegation for Like & Delete Buttons
   if (opinionsCardsContainer) {
     opinionsCardsContainer.addEventListener('click', async (e) => {
-      // 1. LIKE BUTTON CLICKED (Anyone can like from any device)
+      // LIKE
       const likeBtn = e.target.closest('.opinion-like-button');
       if (likeBtn) {
         const opinionId = likeBtn.getAttribute('data-id');
-        const targetOp = cachedOpinions.find(o => o.id === opinionId);
+        const targetOp = cachedOpinions.find(o => String(o.id) === String(opinionId));
         if (targetOp) {
-          targetOp.likes = (targetOp.likes || 0) + 1;
+          targetOp.likes = (Number(targetOp.likes) || 0) + 1;
           saveLocalOpinions(cachedOpinions);
           likeBtn.classList.add('liked');
           showToast('You liked this opinion! 👍');
@@ -908,27 +889,27 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // 2. DELETE BUTTON CLICKED (Author only)
+      // DELETE
       const deleteBtn = e.target.closest('.opinion-delete-button');
       if (deleteBtn) {
         const opinionId = deleteBtn.getAttribute('data-id');
-        const targetOp = cachedOpinions.find(o => o.id === opinionId);
-        const currentUser = sessionStorage.getItem('smartcity_username') || '';
-        const currentRole = sessionStorage.getItem('smartcity_role') || 'guest';
+        const targetOp = cachedOpinions.find(o => String(o.id) === String(opinionId));
+        const currentUser = (sessionStorage.getItem('smartcity_username') || localStorage.getItem('smartcity_username') || '').toLowerCase();
+        const currentRole = sessionStorage.getItem('smartcity_role') || localStorage.getItem('smartcity_role') || 'guest';
 
         if (!targetOp) return;
 
-        const isAuthor = currentUser && (currentUser.toLowerCase() === targetOp.author.toLowerCase());
-        const isAdmin = currentRole === 'admin';
+        const isAuthor = currentUser && (currentUser === String(targetOp.author || '').toLowerCase());
+        const isAdmin = currentRole === 'admin' || currentUser === 'admin';
 
         if (!isAuthor && !isAdmin) {
           showToast('Permission Denied: You can only delete your own opinions.');
           return;
         }
 
-        const confirmDelete = confirm(`Are you sure you want to delete your opinion: "${targetOp.text.slice(0, 30)}..."?`);
+        const confirmDelete = confirm(`Are you sure you want to delete your opinion: "${String(targetOp.text || '').slice(0, 30)}..."?`);
         if (confirmDelete) {
-          cachedOpinions = cachedOpinions.filter(o => o.id !== opinionId);
+          cachedOpinions = cachedOpinions.filter(o => String(o.id) !== String(opinionId));
           saveLocalOpinions(cachedOpinions);
           showToast('Opinion deleted from all devices & Cloud Database.');
           renderOpinions();
@@ -939,19 +920,27 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Toast Notification Helper
-  const toastNotification = document.getElementById('toast-notification');
-  const toastMessage = document.getElementById('toast-message');
-  let toastTimer = null;
+  // =========================================================================
+  // 6. INITIALIZATION & SESSION RESTORATION (Executes after all setup!)
+  // =========================================================================
+  // Load local cache and render immediately
+  cachedOpinions = getLocalOpinions();
+  renderOpinions();
 
-  function showToast(message) {
-    if (!toastNotification || !toastMessage) return;
-    toastMessage.textContent = message;
-    toastNotification.classList.remove('hidden');
+  // Background Cloud Sync
+  fetchOpinionsFromCloud();
 
-    if (toastTimer) clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => {
-      toastNotification.classList.add('hidden');
-    }, 3200);
+  // Periodic polling every 5 seconds to sync other devices in real-time
+  setInterval(fetchOpinionsFromCloud, 5000);
+
+  // Restore session on reload (Checks both sessionStorage and localStorage)
+  const isSavedLogin = (sessionStorage.getItem('smartcity_logged_in') === 'true') || (localStorage.getItem('smartcity_logged_in') === 'true');
+  if (isSavedLogin) {
+    const savedUser = sessionStorage.getItem('smartcity_username') || localStorage.getItem('smartcity_username') || 'admin';
+    const savedRole = sessionStorage.getItem('smartcity_role') || localStorage.getItem('smartcity_role') || 'user';
+    sessionStorage.setItem('smartcity_logged_in', 'true');
+    sessionStorage.setItem('smartcity_username', savedUser);
+    sessionStorage.setItem('smartcity_role', savedRole);
+    transitionToFeed(savedUser, savedRole);
   }
 });
