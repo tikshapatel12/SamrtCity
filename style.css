@@ -1177,11 +1177,7 @@ body {
   color: #ffffff;
 }
 
-.opinion-time {
-  font-size: 11px;
-  color: var(--text-muted);
-  margin-left: 6px;
-}
+
 
 .opinion-pillar-tag {
   padding: 4px 10px;
